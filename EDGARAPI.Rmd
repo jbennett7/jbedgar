@@ -1,0 +1,256 @@
+---
+title: "EDGARAPI"
+author: "Joseph Bennett"
+date: "`r Sys.Date()`"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(eval = TRUE)
+```
+
+From the SEC:  https://www.sec.gov/search-filings/edgar-application-programming-interfaces
+
+# EDGAR Application Programming Interfaces
+
+EDGAR access requires a reasonable User Agent set up
+
+```{r set HTTP User Agent}
+options(HTTPUserAgent = 'jbenentt@jbennettconsulting.com')
+```
+
+The `CIK` for the entity needs to be 10-digits. We will store it as a string.
+
+Here is a function that will construct the `cik` if it isn't 10 digits.
+
+```{r cik construction}
+cik.to.10 <- function(cik) {
+  if(nchar(cik) < 10){
+    nzeros <- 10 - nchar(cik)
+    cik <- paste(c(rep('0', nzeros), cik), collapse='')
+  }
+  return(cik)
+}
+```
+
+The base link to the data
+
+```{r api base}
+edgar.api <- 'https://data.sec.gov'
+```
+
+## data.sec.gov/submissions
+
+Each entity's filing history is available at:
+
+* `https://data.sec.gov/submissions/CIK##########.json`
+
+Where the `##########` is the entity’s 10-digit Central Index Key (CIK), including leading zeros.
+
+This JSON data structure contains metadata such as current name, former name, and stock exchanges and ticker symbols of publicly-traded companies. The object’s property path contains at least one year’s of filing or to 1,000 (whichever is more) of the most recent filings in a compact columnar data array. If the entity has additional filings, files will contain an array of additional JSON files and the date range for the filings each one contains.
+
+```{r download submissions data}
+require(rjson)
+edgar.submissions <- function(cik){
+  cik <- cik.to.10(cik)
+  paste0('https://data.sec.gov/submissions/CIK', cik, '.json')
+}
+edgar.url <- url(edgar.submissions(1321655))
+pltr.json <- readLines(edgar.url)
+parser <- newJSONParser()
+parser$addData(pltr.json)
+pltr.data <- parser$getObject()
+```
+
+```{r exploare submissions data}
+names(pltr.data)
+
+# Interesting data is found here
+names(pltr.data$filings$recent)
+```
+
+```{r transform sumissions data}
+fields <- names(pltr.data$filings$recent)
+df <- as.data.frame(do.call(cbind, lapply(pltr.data$filings$recent, function(x) x
+)))
+```
+
+```{r display sumissions dataframe}
+df[df$form %in% c("10-K", "10-Q"),]
+```
+
+## XBRL data APIs
+
+Extensible Business Markup Language (XBRL) is an XML-based format for reporting financial statements used by the SEC and financial regulatory agencies across the world. XBRL, in a separate XML file or more recently embedded in quarterly and annual HTML reports as inline XBRL, was first required by the SEC in 2009. XBRL facts must be associated for a standard US-GAAP or IFRS taxonomy. Companies can also extend standard taxonomies with their own custom taxonomies.
+
+The following XBRL APIs aggregate facts from across submissions that
+
+Use a non-custom taxonomy (e.g. us-gaap, ifrs-full, dei, or srt)
+Apply to the entire filing entity
+This ensures that facts have a consistent context and meaning across companies and between filings and are comparable between companies and across time.
+
+## data.sec.gov/api/xbrl/companyconcept/
+
+The company-concept API returns all the XBRL disclosures from a single company (CIK) and concept (a taxonomy and tag) into a single JSON file, with a separate array of facts for each units on measure that the company has chosen to disclose (e.g. net profits reported in U.S. dollars and in Canadian dollars).
+
+* `https://data.sec.gov/api/xbrl/companyconcept/CIK##########/us-gaap/AccountsPayableCurrent.json`
+
+```{r download companyconcept data}
+require(rjson)
+edgar.concept <- function(cik, concept){
+  cik <- cik.to.10(cik)
+  paste0('https://data.sec.gov/api/xbrl/companyconcept/CIK',
+         cik, '/us-gaap/', concept, '.json')
+}
+edgar.url <- url(edgar.concept(1321655, 'AssetsCurrent'))
+pltr.json <- readLines(edgar.url)
+parser <- newJSONParser()
+parser$addData(pltr.json)
+pltr.data <- parser$getObject()
+```
+
+```{r exploare companyconcept data}
+names(pltr.data)
+
+# Interesting data
+pltr.data$units$USD[c(1,2,3)]
+```
+
+```{r transform companyconcept data}
+fields <- c("end", "val", "accn", "fy", "fp", "form", "filed", "frame")
+
+df <- do.call(rbind, lapply(pltr.data$units$USD, function(x) {
+  x[setdiff(fields, names(x))] <- NA
+  
+  as.data.frame(x[fields], stringAsFactors = F)
+}))
+```
+
+```{r display companyconcept dataframe}
+df[1:5,]
+```
+
+## data.sec.gov/api/xbrl/companyfacts/
+
+This API returns all the company concepts data for a company into a single API call:
+
+* `https://data.sec.gov/api/xbrl/companyfacts/CIK##########.json`
+
+### Company Facts example
+
+```{r download facts data}
+require(rjson)
+edgar.fact <- function(cik, fact){
+  cik <- cik.to.10(cik)
+  paste0('https://data.sec.gov/api/xbrl/companyfacts/CIK',
+         cik, '.json')
+}
+edgar.url <- url(edgar.fact(1321655, 'AssetsCurrent'))
+pltr.json <- readLines(edgar.url)
+parser <- newJSONParser()
+parser$addData(pltr.json)
+pltr.data <- parser$getObject()
+```
+
+```{r explore facts data}
+names(pltr.data)
+
+# Interesting data
+pltr.data$facts$`us-gaap`$AssetsCurrent$units$USD[c(1,2,3)]
+```
+
+```{r transform facts data}
+pltr.assetsCurrent.list <- pltr.data$facts$`us-gaap`$AssetsCurrent$units$USD
+pltr.assetsCurrent.df <- do.call(rbind, lapply(pltr.assetsCurrent.list, function(x) {
+  fields <- c("end", "val", "accn", "fy", "fp", "form", "filed", "frame")
+  x[setdiff(fields, names(x))] <- NA
+  as.data.frame(x[fields], stringAsFactors = FALSE)
+}))
+pltr.assetsCurrent.df$end <- as.Date(pltr.assetsCurrent.df$end)
+pltr.assetsCurrent.df$filed <- as.Date(pltr.assetsCurrent.df$filed)
+pltr.ordr <- order(pltr.assetsCurrent.df$end)
+pltr.noframe <- is.na(pltr.assetsCurrent.df$frame)
+pltr.frame <- !is.na(pltr.assetsCurrent.df$frame)
+```
+
+```{r display facts data}
+pltr.assetsCurrent.df[pltr.ordr,]
+```
+
+## data.sec.gov/api/xbrl/frames/
+
+The xbrl/frames API aggregates one fact for each reporting entity that is last filed that most closely fits the calendrical period requested. This API supports for annual, quarterly and instantaneous data:
+
+* https://data.sec.gov/api/xbrl/frames/us-gaap/AccountsPayableCurrent/USD/CY2019Q1I.json
+
+Where the units of measure specified in the XBRL contains a numerator and a denominator, these are separated by “-per-” such as “USD-per-shares”. Note that the default unit in XBRL is “pure”.
+
+The period format is `CY####` for annual data (duration 365 days +/- 30 days), `CY####Q#` for quarterly data (duration 91 days +/- 30 days), and `CY####Q#I` for instantaneous data. Because company financial calendars can start and end on any month or day and even change in length from quarter to quarter to according to the day of the week, the frame data is assembled by the dates that best align with a calendar quarter or year. Data users should be mindful different reporting start and end dates for facts contained in a frame.
+
+
+```{r download frames data}
+require(rjson)
+edgar.fact <- function(fact, year, qtr){
+  paste0('https://data.sec.gov/api/xbrl/frames/us-gaap/', fact, '/USD/CY',
+         year, 'Q', qtr, 'I.json')
+}
+edgar.url <- url(edgar.fact('AssetsCurrent', 2024, 1))
+pltr.json <- readLines(edgar.url)
+parser <- newJSONParser()
+parser$addData(pltr.json)
+pltr.data <- parser$getObject()
+```
+
+```{r exploare frames data}
+names(pltr.data)
+pltr.data$data[c(1,2,3)]
+```
+
+```{r transform frames data}
+fields <- c("accn", "cik", "entityName", "loc", "end", "val")
+df <- do.call(rbind, lapply(pltr.data$data, function(x) {
+  x[setdiff(fields, names(x))] <- NA
+  
+  as.data.frame(x[fields], stringAsFactors = F)
+}))
+```
+
+```{r display frames dataframe}
+df[1:30,]
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
