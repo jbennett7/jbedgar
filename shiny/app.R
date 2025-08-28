@@ -8,6 +8,7 @@ ua <- readLines('./.useragent')
 
 options(HTTPUserAgent = ua)
 
+# Temporary - used for testing, will build a package.
 source("R/get_cik.R")
 
 submissions.url <- function(cik){
@@ -26,7 +27,7 @@ ui <- fluidPage(
   titlePanel("Edgar Scraper"),
   tabsetPanel(
       id = "switcher",
-      textInput("ticker", label = "Company Ticker", value="T"),
+      textInput("ticker", label = "Company Ticker", value="CRCL"),
       tabPanel("Explore Company Facts",
           sidebarPanel(
               radioButtons("form_type", "Annual or Quarterly",
