@@ -1,4 +1,5 @@
 suppressMessages(require(jsonlite))
+suppressMessages(require(zoo))
 suppressMessages(require(tidyverse))
 
 ua <- readLines('./.useragent')
@@ -21,10 +22,14 @@ facts.url <- function(cik) {
 }
 
 ########### Concept
+#cpt <- "CashAndCashEquivalentsAtCarryingValue"
 #cpt <- "CashAndCashEquivalentsSegregatedForTheBenefitOfStablecoinHolders"
 #cpt <- 'Assets'
 #data <- fromJSON(concept.url(get_cik('crcl'), cpt))
-#data$units$USD
+#x11()
+#df <- zoo(data$units$USD$end, data$units$USD$val)
+#plot(df)
+#Sys.sleep(30)
 
 ########### Submissions
 #data <- fromJSON(submissions.url(get_cik('crcl')))
