@@ -4,7 +4,8 @@ if (!require(bslib)) install.packages("bslib")
 if (!require(DT)) install.packages("DT")
 if (!require(jsonlite)) install.packages("jsonlite")
 
-ua <- readLines('./.useragent')
+ua <- readLines('.ignore/useragent')
+default_tik <- "XYZ"
 
 options(HTTPUserAgent = ua)
 
@@ -27,7 +28,7 @@ ui <- fluidPage(
   titlePanel("Edgar Scraper"),
   tabsetPanel(
       id = "switcher",
-      textInput("ticker", label = "Company Ticker", value="CRCL"),
+      textInput("ticker", label = "Company Ticker", value=default_tik),
       tabPanel("Explore Company Facts",
           sidebarPanel(
               radioButtons("form_type", "Annual or Quarterly",

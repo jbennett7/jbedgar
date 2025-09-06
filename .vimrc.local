@@ -1,0 +1,2 @@
+nnoremap <leader>e :call ExecuteCommand('R --no-save -s < ' . expand('%'))<CR>
+inoremap <C-e> <ESC>:call ExecuteCommand('R --no-save -s < ' . expand('%'))<CR>
