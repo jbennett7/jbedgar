@@ -1,3 +1,6 @@
 importFrom(jsonlite, fromJSON)
 importFrom(stringr, str_detect)
 import(dplyr)
+export(submissions)
+export(getCik)
+export(getFilings)
