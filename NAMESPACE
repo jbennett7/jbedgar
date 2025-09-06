@@ -1,3 +1,3 @@
-importfrom('jsonlite', 'fromJSON')
-importfrom('stringr', 'str_detect')
-import('dplyr')
+importFrom(jsonlite, fromJSON)
+importFrom(stringr, str_detect)
+import(dplyr)
