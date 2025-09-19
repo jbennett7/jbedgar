@@ -1,20 +1,36 @@
 options(repos=c("https://mirrors.nics.utk.edu/cran/"))
-if (!require(shiny)) install.packages("shiny")
-if (!require(bslib)) install.packages("bslib")
-if (!require(DT)) install.packages("DT")
-if (!require(jsonlite)) install.packages("jsonlite")
+suppressMessages({
+    if (!require(shiny)) {
+        install.packages("shiny")
+        require(shiny)
+    }
+    if (!require(bslib)) {
+        install.packages("bslib")
+        require(bslib)
+    }
+    if (!require(DT)) {
+        install.packages("DT")
+        require(DT)
+    }
+    if (!require(jsonlite)) {
+        install.packages("jsonlite")
+        require(jsonlite)
+    }
+    if (!require(dplyr)) {
+        install.packages("dplyr")
+        require(dplyr)
+    }
+    source("R/getCik.R")
+    source("R/getSubmissions.R")
+    source("R/constants.R")
+    source("R/listFilings.R")
+})
 
-ua <- readLines('.ignore/useragent')
 default_tik <- "XYZ"
 
+ua <- readLines('.ignore/useragent')
 options(HTTPUserAgent = ua)
 
-# Temporary - used for testing, will build a package.
-source("R/get_cik.R")
-
-submissions.url <- function(cik){
-  paste0("https://data.sec.gov/submissions/CIK", cik, ".json")
-}
 concept.url <- function(cik, concept){
   paste0("https://data.sec.gov/api/xbrl/companyconcept/CIK",
          cik, "/us-gaap/", concept, ".json")
@@ -67,32 +83,24 @@ ui <- fluidPage(
 server <- function(input, output, session) {
     get_facts <- reactive({
         req(input$ticker)
-        cik <- get_cik(input$ticker)
+        cik <- getCik(input$ticker)
         req(cik)
-        tmp <- fromJSON(facts.url(cik))
-        tmp$facts$`us-gaap`
+        facts <- fromJSON(facts.url(cik))
+        facts$facts$`us-gaap`
     })
 
     get_facts_names <- reactive({
         names(get_facts())
     })
 
-    get_submissions <- reactive({
-        req(input$ticker)
-        cik <- get_cik(input$ticker)
-        req(cik)
-        tmp <- fromJSON(submissions.url(cik))
-        tmp
-    })
-
     get_concept <- reactive({
         req(input$ticker,
             input$concept_name %in% get_facts_names())
-        cik <- get_cik(input$ticker)
+        cik <- getCik(input$ticker)
         req(cik)
         req(input$concept_name)
-        tmp <- fromJSON(concept.url(cik, input$concept_name))
-        tmp
+        concepts <- fromJSON(concept.url(cik, input$concept_name))
+        concepts
     })
     
     observe({
@@ -140,18 +148,17 @@ server <- function(input, output, session) {
 
     output$company_name <- renderText({
         req(input$ticker)
-        get_submissions()$name
+        getSubmissions(input$ticker)$name
     })
 
     output$tickers <- renderText({
         req(input$ticker)
-        get_submissions()$tickers
+        getSubmissions(input$ticker)$tickers
     })
 
     output$submissions_table <- renderDT({
         req(input$ticker)
-        tbl <- do.call(cbind, get_submissions()$filings$recent)
-        rownames(tbl) <- NULL
+        tbl <- getSubmissions(input$ticker)$filings
         datatable(tbl,
                   options = list(pageLength = 10),
                   filter = 'top',
