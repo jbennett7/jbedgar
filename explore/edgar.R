@@ -40,7 +40,7 @@ dl.10K.report <- function(sym, rDate){
         message('Data cache found, loading...')
         return(inst)
     }
-    # we want the 10-K reprot of a certian report date for the ticker
+    # we want the 10-K report of a certian report date for the ticker
     r10K <- listFilings(sym) %>%
         filter(
             form == '10-K',
