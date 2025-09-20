@@ -147,8 +147,6 @@ pres.df.num <-
     ) %>%
     arrange(elOrder)
 
-pres.df.num
-
 top.level.income.statement <- unique(pres.df.num %>%
     filter(is.na(dimension1)) %>%
     select(endDate, elementId, fact)) %>%
@@ -265,8 +263,6 @@ amortization.of.acquired.technology <-
     #filter(fact == "11,174"))
     filter(
         elementId == "us-gaap_CostOfGoodsAndServicesSoldAmortization",
-        dimension1 == "us-gaap:FiniteLivedIntangibleAssetsByMajorClassAxis",
-        value1 == "us-gaap:TechnologyBasedIntangibleAssetsMember",
     ))
 
 total.cost.of.revenue <-
