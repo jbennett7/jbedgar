@@ -134,28 +134,276 @@ pres.df.num <-
     pres.df %>%
     left_join(inst$fact, by = "elementId") %>%
     left_join(inst$context, by = "contextId") %>%
-    #filter(is.na(dimension1)) %>%
     filter(!is.na(endDate)) %>%
-    select(elOrder, contains("level"), contains("dimension"), contains("value"), elementId, fact, scale, endDate) %>%
-    #mutate(fact = as.numeric(gsub(',','', fact)) * 10^as.numeric(scale)) %>%
-    #pivot_wider(names_from = endDate, values_from = fact) %>%
+    select(
+        elOrder,
+        contains("level"),
+        contains("dimension"),
+        contains("value"),
+        elementId,
+        fact,
+        scale,
+        endDate
+    ) %>%
     arrange(elOrder)
+
+pres.df.num
 
 top.level.income.statement <- unique(pres.df.num %>%
     filter(is.na(dimension1)) %>%
     select(endDate, elementId, fact)) %>%
     pivot_wider(names_from = endDate, values_from = fact)
+#top.level.income.statement
 
 deep.dive.income.statement <- unique(pres.df.num %>%
-    filter(endDate == '2020-12-31') %>%
+    filter(endDate == '2020-12-31')) %>%
     mutate(
         heading = case_when(
             !is.na(dimension1) ~ value1,
             TRUE ~ elementId
         )
+    )
+#deep.dive.income.statement
+
+collected <-
+    inst$fact %>%
+    left_join(inst$context, by = "contextId") %>%
+    left_join(inst$element, by = "elementId") %>%
+    select(-c(contextId, factId, ns.x, ns.y, scheme, identifier))
+
+####################### Statement of operations ################################
+
+### Revenue
+
+transaction.based.revenue <-
+    unique(collected %>%
+    #filter(fact == "3,294,978"))
+    filter(
+        elementId == "us-gaap_RevenueFromContractWithCustomerExcludingAssessedTax",
+        dimension1 == "srt:ProductOrServiceAxis",
+        value1 == "sq:TransactionMember",
     ))
 
-pres.df.num %>% filter(grepl("[hH]ardware", value1))
-#pres.df.num %>% filter(elementId == "us-gaap_CostOfGoodsAndServicesSold", fact == "143,901")
-#top.level.income.statement
-#test <- deep.dive.income.statement %>% select(heading, elementId, contains("dimension"), contains("value"), fact)
+subscription.and.service.based.revenue <-
+    unique(collected %>%
+    #filter(fact == "1,539,403"))
+    filter(
+        elementId == "us-gaap_Revenues",
+        dimension1 == "srt:ProductOrServiceAxis",
+        value1 == "sq:SoftwareandDataProductsMember",
+        is.na(dimension2),
+    ))
+
+hardware.revenue <-
+    unique(collected %>%
+    #filter(fact == "91,654")
+    filter(
+        #endDate == "2020-12-31",
+        dimension1 == "srt:ProductOrServiceAxis",
+        value1 == "sq:HardwareMember",
+        #type == "xbrli:monetaryItemType",
+        #type == "xbrli:stringItemType",
+    ))
+
+bitcoin.revenue <-
+    unique(collected %>%
+    #filter(fact == "4,571,543"))
+    filter(
+        elementId == "us-gaap_RevenueFromContractWithCustomerExcludingAssessedTax",
+        dimension1 == "srt:ProductOrServiceAxis",
+        value1 == "sq:CryptocurrencyDenominatedAssetsMember",
+    ))
+
+total.net.revenue <-
+    unique(collected %>%
+    #filter(fact == "9,497,578") %>%
+    filter(
+        elementId == "us-gaap_Revenues",
+        is.na(dimension1),
+        #type == "xbrli:monetaryItemType",
+    ))
+
+### Cost of Revenue
+
+transaction.based.costs <-
+    unique(collected %>%
+    #filter(fact == "1,911,848"))
+    filter(
+        elementId == "us-gaap_CostOfGoodsAndServicesSold",
+        dimension1 == "srt:ProductOrServiceAxis",
+        value1 == "sq:TransactionMember",
+    ))
+
+subscription.and.services.based.costs <-
+    unique(collected %>%
+    #filter(fact == "222,712"))
+    filter(
+        elementId == "us-gaap_CostOfGoodsAndServicesSold",
+        dimension1 == "srt:ProductOrServiceAxis",
+        value1 == "sq:SoftwareandDataProductsMember",
+    ))
+
+hardware.costs <-
+    unique(collected %>%
+    #filter(fact == "143,901"))
+    filter(
+        elementId == "us-gaap_CostOfGoodsAndServicesSold",
+        is.na(dimension1),
+    ))
+
+bitcoin.costs <-
+    unique(collected %>%
+    #filter(fact == "4,474,534"))
+    filter(
+        elementId == "us-gaap_CostOfGoodsAndServicesSold",
+        dimension1 == "srt:ProductOrServiceAxis",
+        value1 == "sq:CryptocurrencyDenominatedAssetsMember",
+    ))
+
+amortization.of.acquired.technology <-
+    unique(collected %>%
+    #filter(fact == "11,174"))
+    filter(
+        elementId == "us-gaap_CostOfGoodsAndServicesSoldAmortization",
+        dimension1 == "us-gaap:FiniteLivedIntangibleAssetsByMajorClassAxis",
+        value1 == "us-gaap:TechnologyBasedIntangibleAssetsMember",
+    ))
+
+total.cost.of.revenue <-
+    unique(collected %>%
+    #filter(fact == "6,764,169"))
+    filter(
+        elementId == "us-gaap_CostOfRevenue",
+    ))
+
+gross.profit <-
+    unique(collected %>%
+    #filter(fact == "2,733,409"))
+    filter(
+        elementId == "us-gaap_GrossProfit",
+        is.na(dimension1),
+    ))
+
+product.development <-
+    unique(collected %>%
+    #filter(fact == "881,826"))
+    filter(
+        elementId == "us-gaap_ResearchAndDevelopmentExpense",
+        is.na(dimension1),
+    ))
+
+sales.and.marketing <-
+    unique(collected %>%
+    #filter(fact == "1,109,670"))
+    filter(
+        elementId == "us-gaap_SellingAndMarketingExpense",
+        is.na(dimension1),
+    ))
+
+general.and.administrative <-
+    unique(collected %>%
+    #filter(fact == "579,203"))
+    filter(
+        elementId == "us-gaap_GeneralAndAdministrativeExpense",
+        is.na(dimension1),
+    ))
+
+transaction.and.loan.losses <-
+    unique(collected %>%
+    #filter(fact == "177,670"))
+    filter(
+        elementId == "us-gaap_ProvisionForLoanLeaseAndOtherLosses",
+    ))
+
+amortization.of.acquired.customer.assets <-
+    unique(collected %>%
+    #filter(fact == "3,855")
+    filter(
+        elementId == "us-gaap_AmortizationOfIntangibleAssets"
+    ))
+
+total.operating.expenses <-
+    unique(collected %>%
+    #filter(fact == "2,752,224"))
+    filter(
+        elementId == "us-gaap_CostsAndExpenses",
+    ))
+
+operating.income.loss <-
+    unique(collected %>%
+    #filter(fact == "18,815"))
+    filter(
+        elementId == "us-gaap_OperatingIncomeLoss",
+    ))
+
+gain.of.sale.of.asset.group <-
+    unique(collected %>%
+    #filter(fact == "0"))
+    filter(
+        elementId == "us-gaap_DisposalGroupNotDiscontinuedOperationGainLossOnDisposal",
+        is.na(dimension1),
+    ))
+
+interest.expense.net <-
+    unique(collected %>%
+    #filter(fact == "56,943"))
+    filter(
+        elementId == "us-gaap_InterestIncomeExpenseNet",
+    ))
+
+other.expense.income.net <-
+    unique(collected %>%
+    #filter(fact == "291,725"))
+    filter(
+        elementId == "us-gaap_OtherNonoperatingIncomeExpense",
+    ))
+
+income.loss.before.income.tax <-
+    unique(collected %>%
+    #filter(fact == "215,967"))
+    filter(
+        elementId == "us-gaap_IncomeLossFromContinuingOperationsBeforeIncomeTaxesExtraordinaryItemsNoncontrollingInterest",
+    ))
+
+provision.for.income.tax <-
+    unique(collected %>%
+    #filter(fact == "2,862"))
+    filter(
+        elementId == "us-gaap_IncomeTaxExpenseBenefit",
+    ))
+
+net.income.loss <-
+    unique(collected %>%
+    #filter(fact == "213,105"))
+    filter(
+        elementId == "us-gaap_NetIncomeLoss",
+        is.na(dimension1),
+    ))
+
+net.income.per.share.basic <-
+    unique(collected %>%
+    #filter(fact == ".48"))
+    filter(
+        elementId == "us-gaap_EarningsPerShareBasic",
+    ))
+
+net.income.per.share.diluted <-
+    unique(collected %>%
+    #filter(fact == ".44"))
+    filter(
+        elementId == "us-gaap_EarningsPerShareDiluted",
+    ))
+
+weighted.average.number.of.shares.outstanding.basic <-
+    unique(collected %>%
+    #filter(fact == "443,126"))
+    filter(
+        elementId == "us-gaap_WeightedAverageNumberOfSharesOutstandingBasic",
+    ))
+
+weighted.average.number.of.shares.outstanding.diluted <-
+    unique(collected %>%
+    #filter(fact == "482,167"))
+    filter(
+        elementId == "us-gaap_WeightedAverageNumberOfDilutedSharesOutstanding",
+    ))
