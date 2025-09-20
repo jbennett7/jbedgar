@@ -135,33 +135,27 @@ pres.df.num <-
     left_join(inst$fact, by = "elementId") %>%
     left_join(inst$context, by = "contextId") %>%
     filter(!is.na(endDate)) %>%
-    select(
-        elOrder,
-        contains("level"),
-        contains("dimension"),
-        contains("value"),
-        elementId,
-        fact,
-        scale,
-        endDate
-    ) %>%
     arrange(elOrder)
 
 top.level.income.statement <- unique(pres.df.num %>%
     filter(is.na(dimension1)) %>%
     select(endDate, elementId, fact)) %>%
     pivot_wider(names_from = endDate, values_from = fact)
-#top.level.income.statement
 
 deep.dive.income.statement <- unique(pres.df.num %>%
-    filter(endDate == '2020-12-31')) %>%
     mutate(
         heading = case_when(
             !is.na(dimension1) ~ value1,
             TRUE ~ elementId
         )
-    )
-#deep.dive.income.statement
+    ) %>%
+    select(endDate, elementId, fact))
+
+####################### Statement of operations ################################
+# Breakdown of the items in the statement of operations
+
+# This is the working dataframe, compiled from the fact, context and element
+# dataframes.
 
 collected <-
     inst$fact %>%
@@ -169,9 +163,10 @@ collected <-
     left_join(inst$element, by = "elementId") %>%
     select(-c(contextId, factId, ns.x, ns.y, scheme, identifier))
 
-####################### Statement of operations ################################
-
-### Revenue
+# Each of the following variables corresponds to an item in the statement
+# of opearations. This is only an exploration of each item to isolate what
+# are the components that identify the underlying facts.
+# There are 29 variables.
 
 transaction.based.revenue <-
     unique(collected %>%
@@ -220,8 +215,6 @@ total.net.revenue <-
         is.na(dimension1),
         #type == "xbrli:monetaryItemType",
     ))
-
-### Cost of Revenue
 
 transaction.based.costs <-
     unique(collected %>%
